@@ -646,8 +646,8 @@ mod tests {
   use crate::lsp::documents::Documents;
   use crate::lsp::documents::LanguageId;
   use crate::lsp::npm::NpmSearchApi;
-  use crate::AnyError;
   use async_trait::async_trait;
+  use deno_core::error::AnyError;
   use deno_core::resolve_url;
   use deno_graph::Range;
   use deno_npm::registry::NpmPackageInfo;

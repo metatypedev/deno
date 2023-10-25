@@ -4,8 +4,8 @@ use factory::CliFactory;
 use util::display;
 
 pub use deno_config;
-pub use deno_runtime;
 pub use deno_graph;
+pub use deno_runtime;
 
 pub mod args;
 pub mod auth_tokens;
