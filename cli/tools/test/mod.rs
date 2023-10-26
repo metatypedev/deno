@@ -541,7 +541,8 @@ pub async fn run_tests_for_worker(
     }
 
     let earlier = SystemTime::now();
-    let result = match worker.js_runtime.call_and_await(&function).await {
+    let result = match worker.js_runtime.call_and_await(&function)
+        .await {
       Ok(r) => r,
       Err(error) => {
         if error.is::<JsError>() {
