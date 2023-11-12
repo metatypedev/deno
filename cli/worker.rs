@@ -83,6 +83,8 @@ pub trait HasNodeSpecifierChecker: Send + Sync {
   fn has_node_specifier(&self) -> bool;
 }
 
+pub type CustomExtensionsCb = dyn Fn() -> Vec<Extension> + Send + Sync;
+
 #[derive(Clone)]
 pub struct CliMainWorkerOptions {
   pub argv: Vec<String>,
@@ -105,6 +107,7 @@ pub struct CliMainWorkerOptions {
   pub unstable: bool,
   pub skip_op_registration: bool,
   pub maybe_root_package_json_deps: Option<PackageJsonDeps>,
+  pub custom_extensions_cb: Option<Arc<CustomExtensionsCb>>,
 }
 
 struct SharedWorkerState {
@@ -566,6 +569,9 @@ impl CliMainWorkerFactory {
 
     let mut extensions = ops::cli_exts();
     extensions.append(&mut custom_extensions);
+    if let Some(cb) = &self.shared.options.custom_extensions_cb {
+      extensions.append(&mut cb());
+    }
 
     // TODO(bartlomieju): this is cruft, update FeatureChecker to spit out
     // list of enabled features.
