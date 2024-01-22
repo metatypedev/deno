@@ -504,15 +504,15 @@ pub struct TestSummary {
 }
 
 #[derive(Debug, Clone)]
-struct TestSpecifiersOptions {
-  cwd: Url,
-  concurrent_jobs: NonZeroUsize,
-  fail_fast: Option<NonZeroUsize>,
-  log_level: Option<log::Level>,
-  filter: bool,
-  specifier: TestSpecifierOptions,
-  reporter: TestReporterConfig,
-  junit_path: Option<String>,
+pub struct TestSpecifiersOptions {
+  pub cwd: Url,
+  pub concurrent_jobs: NonZeroUsize,
+  pub fail_fast: Option<NonZeroUsize>,
+  pub log_level: Option<log::Level>,
+  pub filter: bool,
+  pub specifier: TestSpecifierOptions,
+  pub reporter: TestReporterConfig,
+  pub junit_path: Option<String>,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -1390,7 +1390,7 @@ pub async fn check_specifiers(
 static HAS_TEST_RUN_SIGINT_HANDLER: AtomicBool = AtomicBool::new(false);
 
 /// Test a collection of specifiers with test modes concurrently.
-async fn test_specifiers(
+pub async fn test_specifiers(
   worker_factory: Arc<CliMainWorkerFactory>,
   permissions: &Permissions,
   specifiers: Vec<ModuleSpecifier>,
@@ -1709,7 +1709,7 @@ fn collect_specifiers_with_test_mode(
 /// module are marked as `TestMode::Documentation`. Type definition files
 /// cannot be run, and therefore need to be marked as `TestMode::Documentation`
 /// as well.
-async fn fetch_specifiers_with_test_mode(
+pub async fn fetch_specifiers_with_test_mode(
   cli_options: &CliOptions,
   file_fetcher: &FileFetcher,
   member_patterns: impl Iterator<Item = FilePatterns>,
