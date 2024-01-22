@@ -4,7 +4,7 @@ pub mod deno_json;
 mod flags;
 mod flags_net;
 mod import_map;
-mod lockfile;
+pub mod lockfile;
 pub mod package_json;
 
 pub use self::import_map::resolve_import_map;
