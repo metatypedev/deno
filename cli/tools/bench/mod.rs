@@ -57,10 +57,10 @@ use reporters::ConsoleReporter;
 use reporters::JsonReporter;
 
 #[derive(Debug, Clone)]
-struct BenchSpecifierOptions {
-  filter: TestFilter,
-  json: bool,
-  log_level: Option<log::Level>,
+pub struct BenchSpecifierOptions {
+  pub filter: TestFilter,
+  pub json: bool,
+  pub log_level: Option<log::Level>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Deserialize)]
@@ -147,7 +147,7 @@ fn create_reporter(
 }
 
 /// Type check a collection of module and document specifiers.
-async fn check_specifiers(
+pub async fn check_specifiers(
   cli_options: &CliOptions,
   module_load_preparer: &ModuleLoadPreparer,
   specifiers: Vec<ModuleSpecifier>,
@@ -281,7 +281,7 @@ async fn bench_specifier_inner(
 }
 
 /// Test a collection of specifiers with test modes concurrently.
-async fn bench_specifiers(
+pub async fn bench_specifiers(
   worker_factory: Arc<CliMainWorkerFactory>,
   permissions: &Permissions,
   specifiers: Vec<ModuleSpecifier>,
@@ -395,7 +395,7 @@ async fn bench_specifiers(
 }
 
 /// Checks if the path has a basename and extension Deno supports for benches.
-fn is_supported_bench_path(path: &Path, patterns: &FilePatterns) -> bool {
+pub fn is_supported_bench_path(path: &Path, patterns: &FilePatterns) -> bool {
   if !is_script_ext(path) {
     false
   } else if has_supported_bench_path_name(path) {

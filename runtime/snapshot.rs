@@ -199,6 +199,7 @@ impl deno_kv::sqlite::SqliteDbHandlerPermissions for Permissions {
 pub fn create_runtime_snapshot(
   snapshot_path: PathBuf,
   snapshot_options: SnapshotOptions,
+  mut extra_extensions: Vec<Extension>,
 ) {
   // NOTE(bartlomieju): ordering is important here, keep it in sync with
   // `runtime/worker.rs`, `runtime/web_worker.rs` and `runtime/snapshot.rs`!
@@ -255,6 +256,8 @@ pub fn create_runtime_snapshot(
     ops::bootstrap::deno_bootstrap::init_ops(Some(snapshot_options)),
     ops::web_worker::deno_web_worker::init_ops(),
   ];
+
+  extensions.append(&mut extra_extensions);
 
   for extension in &mut extensions {
     for source in extension.esm_files.to_mut() {

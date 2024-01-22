@@ -549,6 +549,8 @@ pub async fn run(
       maybe_root_package_json_deps: package_json_deps_provider.deps().cloned(),
       create_hmr_runner: None,
       create_coverage_collector: None,
+      custom_extensions_cb: None,
+      custom_snapshot_cb: None,
     },
     None,
     false,
