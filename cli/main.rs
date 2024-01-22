@@ -1,42 +1,15 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
-mod args;
-mod auth_tokens;
-mod cache;
-mod cdp;
-mod emit;
-mod errors;
-mod factory;
-mod file_fetcher;
-mod graph_container;
-mod graph_util;
-mod http_util;
-mod js;
-mod jsr;
-mod lsp;
-mod module_loader;
-mod napi;
-mod node;
-mod npm;
-mod ops;
-mod resolver;
-mod shared;
-mod standalone;
-mod task_runner;
-mod tools;
-mod tsc;
-mod util;
-mod version;
-mod worker;
+use deno::*;
 
-use crate::args::flags_from_vec;
-use crate::args::DenoSubcommand;
-use crate::args::Flags;
-use crate::args::DENO_FUTURE;
-use crate::graph_container::ModuleGraphContainer;
-use crate::util::display;
-use crate::util::v8::get_v8_flags_from_env;
-use crate::util::v8::init_v8_flags;
+use args::flags_from_vec;
+use args::DenoSubcommand;
+use args::Flags;
+use args::DENO_FUTURE;
+use graph_container::ModuleGraphContainer;
+use util::display;
+use util::v8::get_v8_flags_from_env;
+use util::v8::init_v8_flags;
 
 use args::TaskFlags;
 use deno_runtime::WorkerExecutionMode;
@@ -50,7 +23,6 @@ use deno_core::unsync::JoinHandle;
 use deno_npm::resolution::SnapshotFromLockfileError;
 use deno_runtime::fmt_errors::format_js_error;
 use deno_runtime::tokio_util::create_and_run_current_thread_with_maybe_metrics;
-use deno_terminal::colors;
 use factory::CliFactory;
 use standalone::MODULE_NOT_FOUND;
 use std::env;
@@ -361,27 +333,6 @@ fn exit_for_error(error: AnyError) -> ! {
   }
 
   exit_with_message(&error_string, error_code);
-}
-
-#[allow(clippy::print_stderr)]
-pub(crate) fn unstable_exit_cb(feature: &str, api_name: &str) {
-  eprintln!(
-    "Unstable API '{api_name}'. The `--unstable-{}` flag must be provided.",
-    feature
-  );
-  std::process::exit(70);
-}
-
-// TODO(bartlomieju): remove when `--unstable` flag is removed.
-#[allow(clippy::print_stderr)]
-pub(crate) fn unstable_warn_cb(feature: &str, api_name: &str) {
-  eprintln!(
-    "⚠️  {}",
-    colors::yellow(format!(
-      "The `{}` API was used with `--unstable` flag. The `--unstable` flag is deprecated and will be removed in Deno 2.0. Use granular `--unstable-{}` instead.\nLearn more at: https://docs.deno.com/runtime/manual/tools/unstable_flags",
-      api_name, feature
-    ))
-  );
 }
 
 pub fn main() {

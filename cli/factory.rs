@@ -53,6 +53,8 @@ use crate::util::progress_bar::ProgressBar;
 use crate::util::progress_bar::ProgressBarStyle;
 use crate::worker::CliMainWorkerFactory;
 use crate::worker::CliMainWorkerOptions;
+use crate::worker::CustomExtensionsCb;
+use crate::worker::CustomSnapshotCb;
 use std::path::PathBuf;
 
 use deno_config::workspace::PackageJsonDepResolution;
@@ -194,6 +196,8 @@ pub struct CliFactory {
   watcher_communicator: Option<Arc<WatcherCommunicator>>,
   flags: Arc<Flags>,
   services: CliFactoryServices,
+  custom_extensions_cb: Option<Arc<CustomExtensionsCb>>,
+  custom_snapshot_cb: Option<Arc<CustomSnapshotCb>>,
 }
 
 impl CliFactory {
@@ -201,6 +205,8 @@ impl CliFactory {
     Self {
       flags,
       watcher_communicator: None,
+      custom_snapshot_cb: None,
+      custom_extensions_cb: None,
       services: Default::default(),
     }
   }
@@ -210,6 +216,8 @@ impl CliFactory {
     CliFactory {
       watcher_communicator: None,
       flags,
+      custom_snapshot_cb: None,
+      custom_extensions_cb: None,
       services: CliFactoryServices {
         cli_options: Deferred::from_value(cli_options),
         ..Default::default()
@@ -225,6 +233,22 @@ impl CliFactory {
       watcher_communicator: Some(watcher_communicator),
       flags,
       services: Default::default(),
+      custom_extensions_cb: None,
+      custom_snapshot_cb: None,
+    }
+  }
+
+  pub fn with_custom_ext_cb(self, cb: Arc<CustomExtensionsCb>) -> Self {
+    Self {
+      custom_extensions_cb: Some(cb),
+      ..self
+    }
+  }
+
+  pub fn with_custom_snapshot_cb(self, cb: Arc<CustomSnapshotCb>) -> Self {
+    Self {
+      custom_snapshot_cb: Some(cb),
+      ..self
     }
   }
 
@@ -868,6 +892,8 @@ impl CliFactory {
       unstable: cli_options.legacy_unstable_flag(),
       create_hmr_runner,
       create_coverage_collector,
+      custom_extensions_cb: self.custom_extensions_cb.clone(),
+      custom_snapshot_cb: self.custom_snapshot_cb.clone(),
     })
   }
 }
