@@ -1,30 +1,6 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
-mod args;
-mod auth_tokens;
-mod cache;
-mod cdp;
-mod deno_std;
-mod emit;
-mod errors;
-mod factory;
-mod file_fetcher;
-mod graph_util;
-mod http_util;
-mod js;
-mod lsp;
-mod module_loader;
-mod napi;
-mod node;
-mod npm;
-mod ops;
-mod resolver;
-mod standalone;
-mod tools;
-mod tsc;
-mod util;
-mod version;
-mod worker;
+use deno::*;
 
 use crate::args::flags_from_vec;
 use crate::args::DenoSubcommand;
