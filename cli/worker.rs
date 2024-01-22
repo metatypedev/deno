@@ -94,6 +94,9 @@ pub type CreateCoverageCollectorCb = Box<
     + Sync,
 >;
 
+pub type CustomExtensionsCb = dyn Fn() -> Vec<Extension> + Send + Sync;
+pub type CustomSnapshotCb = dyn Fn() -> Option<&'static [u8]> + Send + Sync;
+
 pub struct CliMainWorkerOptions {
   pub argv: Vec<String>,
   pub log_level: WorkerLogLevel,
@@ -116,6 +119,8 @@ pub struct CliMainWorkerOptions {
   pub skip_op_registration: bool,
   pub create_hmr_runner: Option<CreateHmrRunnerCb>,
   pub create_coverage_collector: Option<CreateCoverageCollectorCb>,
+  pub custom_extensions_cb: Option<Arc<CustomExtensionsCb>>,
+  pub custom_snapshot_cb: Option<Arc<CustomSnapshotCb>>,
 }
 
 struct SharedWorkerState {
@@ -494,7 +499,7 @@ impl CliMainWorkerFactory {
     mode: WorkerExecutionMode,
     main_module: ModuleSpecifier,
     permissions: PermissionsContainer,
-    custom_extensions: Vec<Extension>,
+    mut custom_extensions: Vec<Extension>,
     stdio: deno_runtime::deno_io::Stdio,
   ) -> Result<CliMainWorker, AnyError> {
     let shared = &self.shared;
@@ -568,12 +573,16 @@ impl CliMainWorkerFactory {
         .join(checksum::gen(&[key.as_bytes()]))
     });
 
+    if let Some(cb) = &self.shared.options.custom_extensions_cb {
+      custom_extensions.append(&mut cb());
+    }
+
     // TODO(bartlomieju): this is cruft, update FeatureChecker to spit out
     // list of enabled features.
     let feature_checker = shared.feature_checker.clone();
     let mut unstable_features =
-      Vec::with_capacity(crate::UNSTABLE_GRANULAR_FLAGS.len());
-    for granular_flag in crate::UNSTABLE_GRANULAR_FLAGS {
+      Vec::with_capacity(deno_runtime::UNSTABLE_GRANULAR_FLAGS.len());
+    for granular_flag in deno_runtime::UNSTABLE_GRANULAR_FLAGS {
       if feature_checker.check(granular_flag.name) {
         unstable_features.push(granular_flag.id);
       }
@@ -611,7 +620,13 @@ impl CliMainWorkerFactory {
         serve_host: shared.serve_host.clone(),
       },
       extensions: custom_extensions,
-      startup_snapshot: crate::js::deno_isolate_init(),
+      startup_snapshot: self
+        .shared
+        .options
+        .custom_snapshot_cb
+        .as_ref()
+        .map(|cb| cb())
+        .unwrap_or_else(|| crate::js::deno_isolate_init()),
       create_params: None,
       unsafely_ignore_certificate_errors: shared
         .options
@@ -770,11 +785,16 @@ fn create_web_worker_callback(
     // list of enabled features.
     let feature_checker = shared.feature_checker.clone();
     let mut unstable_features =
-      Vec::with_capacity(crate::UNSTABLE_GRANULAR_FLAGS.len());
-    for granular_flag in crate::UNSTABLE_GRANULAR_FLAGS {
+      Vec::with_capacity(deno_runtime::UNSTABLE_GRANULAR_FLAGS.len());
+    for granular_flag in deno_runtime::UNSTABLE_GRANULAR_FLAGS {
       if feature_checker.check(granular_flag.name) {
         unstable_features.push(granular_flag.id);
       }
+    }
+
+    let mut extensions = vec![];
+    if let Some(cb) = &shared.options.custom_extensions_cb {
+      extensions.append(&mut cb());
     }
 
     let options = WebWorkerOptions {
@@ -808,8 +828,13 @@ fn create_web_worker_callback(
         serve_port: shared.serve_port,
         serve_host: shared.serve_host.clone(),
       },
-      extensions: vec![],
-      startup_snapshot: crate::js::deno_isolate_init(),
+      extensions,
+      startup_snapshot: shared
+        .options
+        .custom_snapshot_cb
+        .as_ref()
+        .map(|cb| cb())
+        .unwrap_or_else(|| crate::js::deno_isolate_init()),
       unsafely_ignore_certificate_errors: shared
         .options
         .unsafely_ignore_certificate_errors

@@ -4,8 +4,8 @@ pub mod deno_json;
 mod flags;
 mod flags_net;
 mod import_map;
-mod lockfile;
-mod package_json;
+pub mod lockfile;
+pub mod package_json;
 
 use deno_ast::SourceMapOption;
 use deno_config::workspace::CreateResolverOptions;
@@ -1667,7 +1667,7 @@ impl CliOptions {
     if !from_config_file.is_empty() {
       // collect unstable granular flags
       let mut all_valid_unstable_flags: Vec<&str> =
-        crate::UNSTABLE_GRANULAR_FLAGS
+        deno_runtime::UNSTABLE_GRANULAR_FLAGS
           .iter()
           .map(|granular_flag| granular_flag.name)
           .collect();

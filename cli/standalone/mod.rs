@@ -732,6 +732,8 @@ pub async fn run(
       unstable: metadata.unstable_config.legacy_flag_enabled,
       create_hmr_runner: None,
       create_coverage_collector: None,
+      custom_extensions_cb: None,
+      custom_snapshot_cb: None,
     },
     None,
     None,

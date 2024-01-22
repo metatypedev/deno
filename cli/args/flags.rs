@@ -4042,7 +4042,7 @@ impl Iterator for UnstableArgsIter {
       })
       .help_heading(UNSTABLE_HEADING)
     } else if self.idx > 3 {
-      let granular_flag = crate::UNSTABLE_GRANULAR_FLAGS.get(self.idx - 4)?;
+      let granular_flag = deno_runtime::UNSTABLE_GRANULAR_FLAGS.get(self.idx - 4)?;
       Arg::new(format!("unstable-{}", granular_flag.name))
         .long(format!("unstable-{}", granular_flag.name))
         .help(granular_flag.help_text)
@@ -5410,7 +5410,7 @@ fn unstable_args_parse(
     matches.get_flag("unstable-sloppy-imports");
 
   if matches!(cfg, UnstableArgsConfig::ResolutionAndRuntime) {
-    for granular_flag in crate::UNSTABLE_GRANULAR_FLAGS {
+    for granular_flag in deno_runtime::UNSTABLE_GRANULAR_FLAGS {
       if matches.get_flag(&format!("unstable-{}", granular_flag.name)) {
         flags
           .unstable_config
