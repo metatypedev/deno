@@ -537,6 +537,7 @@ pub async fn run(
         .unsafely_ignore_certificate_errors,
       unstable: metadata.unstable_config.legacy_flag_enabled,
       maybe_root_package_json_deps: package_json_deps_provider.deps().cloned(),
+      custom_extensions_cb: None,
     },
     None,
     metadata.disable_deprecated_api_warning,

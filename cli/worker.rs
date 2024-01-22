@@ -82,6 +82,8 @@ pub trait HasNodeSpecifierChecker: Send + Sync {
   fn has_node_specifier(&self) -> bool;
 }
 
+pub type CustomExtensionsCb = dyn Fn() -> Vec<Extension> + Send + Sync;
+
 #[derive(Clone)]
 pub struct CliMainWorkerOptions {
   pub argv: Vec<String>,
@@ -104,6 +106,7 @@ pub struct CliMainWorkerOptions {
   pub unstable: bool,
   pub skip_op_registration: bool,
   pub maybe_root_package_json_deps: Option<PackageJsonDeps>,
+  pub custom_extensions_cb: Option<Arc<CustomExtensionsCb>>,
 }
 
 struct SharedWorkerState {
@@ -452,7 +455,7 @@ impl CliMainWorkerFactory {
     &self,
     main_module: ModuleSpecifier,
     permissions: PermissionsContainer,
-    custom_extensions: Vec<Extension>,
+    mut custom_extensions: Vec<Extension>,
     stdio: deno_runtime::deno_io::Stdio,
   ) -> Result<CliMainWorker, AnyError> {
     let shared = &self.shared;
@@ -556,6 +559,10 @@ impl CliMainWorkerFactory {
         .join("deno_cache")
         .join(checksum::gen(&[key.as_bytes()]))
     });
+
+    if let Some(cb) = &self.shared.options.custom_extensions_cb {
+      custom_extensions.append(&mut cb());
+    }
 
     // TODO(bartlomieju): this is cruft, update FeatureChecker to spit out
     // list of enabled features.
