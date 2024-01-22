@@ -1,31 +1,6 @@
 // Copyright 2018-2024 the Deno authors. All rights reserved. MIT license.
 
-mod args;
-mod auth_tokens;
-mod cache;
-mod cdp;
-mod deno_std;
-mod diagnostics;
-mod emit;
-mod errors;
-mod factory;
-mod file_fetcher;
-mod graph_util;
-mod http_util;
-mod js;
-mod lsp;
-mod module_loader;
-mod napi;
-mod node;
-mod npm;
-mod ops;
-mod resolver;
-mod standalone;
-mod tools;
-mod tsc;
-mod util;
-mod version;
-mod worker;
+use deno::*;
 
 use crate::args::flags_from_vec;
 use crate::args::DenoSubcommand;
@@ -44,7 +19,6 @@ use deno_core::unsync::JoinHandle;
 use deno_npm::resolution::SnapshotFromLockfileError;
 use deno_runtime::fmt_errors::format_js_error;
 use deno_runtime::tokio_util::create_and_run_current_thread_with_maybe_metrics;
-use deno_terminal::colors;
 use factory::CliFactory;
 use std::env;
 use std::env::current_exe;
@@ -280,25 +254,6 @@ fn unwrap_or_exit<T>(result: Result<T, AnyError>) -> T {
       exit_with_message(&error_string, error_code);
     }
   }
-}
-
-pub(crate) fn unstable_exit_cb(feature: &str, api_name: &str) {
-  eprintln!(
-    "Unstable API '{api_name}'. The `--unstable-{}` flag must be provided.",
-    feature
-  );
-  std::process::exit(70);
-}
-
-// TODO(bartlomieju): remove when `--unstable` flag is removed.
-pub(crate) fn unstable_warn_cb(feature: &str, api_name: &str) {
-  eprintln!(
-    "⚠️  {}",
-    colors::yellow(format!(
-      "The `{}` API was used with `--unstable` flag. The `--unstable` flag is deprecated and will be removed in Deno 2.0. Use granular `--unstable-{}` instead.\nLearn more at: https://docs.deno.com/runtime/manual/tools/unstable_flags",
-      api_name, feature
-    ))
-  );
 }
 
 pub fn main() {
