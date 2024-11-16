@@ -6,11 +6,12 @@ use deno_ast::ModuleSpecifier;
 use deno_core::error::CoreError;
 use deno_core::futures::FutureExt;
 use deno_core::v8;
-use deno_core::Extension;
 use deno_core::PollEventLoopOptions;
 use deno_error::JsErrorBox;
 use deno_lib::worker::LibMainWorker;
 use deno_lib::worker::LibMainWorkerFactory;
+use deno_lib::worker::CustomSnapshotCb;
+use deno_lib::worker::CustomExtensionsCb;
 use deno_lib::worker::ResolveNpmBinaryEntrypointError;
 use deno_runtime::deno_permissions::PermissionsContainer;
 use deno_runtime::worker::MainWorker;
@@ -56,6 +57,11 @@ pub struct CliMainWorkerOptions {
   pub create_coverage_collector: Option<CreateCoverageCollectorCb>,
   pub default_npm_caching_strategy: NpmCachingStrategy,
   pub needs_test_modules: bool,
+  pub node_ipc: Option<i64>,
+  pub serve_port: Option<u16>,
+  pub serve_host: Option<String>,
+  pub custom_extensions_cb: Option<Arc<CustomExtensionsCb>>,
+  pub custom_snapshot_cb: Option<Arc<CustomSnapshotCb>>,
 }
 
 /// Data shared between the factory and workers.
@@ -363,7 +369,7 @@ impl CliMainWorkerFactory {
         mode,
         main_module,
         self.root_permissions.clone(),
-        vec![],
+        None,
         Default::default(),
       )
       .await
@@ -374,7 +380,7 @@ impl CliMainWorkerFactory {
     mode: WorkerExecutionMode,
     main_module: ModuleSpecifier,
     permissions: PermissionsContainer,
-    custom_extensions: Vec<Extension>,
+    custom_extensions_cb: Option<Arc<CustomExtensionsCb>>,
     stdio: deno_runtime::deno_io::Stdio,
   ) -> Result<CliMainWorker, CreateCustomWorkerError> {
     let main_module = if let Ok(package_ref) =
@@ -430,7 +436,7 @@ impl CliMainWorkerFactory {
       mode,
       main_module,
       permissions,
-      custom_extensions,
+      custom_extensions_cb,
       stdio,
     )?;
 

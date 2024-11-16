@@ -162,6 +162,9 @@ pub enum ResolveNpmBinaryEntrypointFallbackError {
   ModuleNotFound(UrlOrPath),
 }
 
+pub type CustomExtensionsCb = dyn Fn() -> Vec<Extension> + Send + Sync;
+pub type CustomSnapshotCb = dyn Fn() -> Option<&'static [u8]> + Send + Sync;
+
 pub struct LibMainWorkerOptions {
   pub argv: Vec<String>,
   pub log_level: WorkerLogLevel,
@@ -184,6 +187,8 @@ pub struct LibMainWorkerOptions {
   pub startup_snapshot: Option<&'static [u8]>,
   pub serve_port: Option<u16>,
   pub serve_host: Option<String>,
+  pub custom_extensions_cb: Option<Arc<CustomExtensionsCb>>,
+  pub custom_snapshot_cb: Option<Arc<CustomSnapshotCb>>,
 }
 
 struct LibWorkerFactorySharedState<TSys: DenoLibSys> {
@@ -236,6 +241,7 @@ impl<TSys: DenoLibSys> LibWorkerFactorySharedState<TSys> {
   fn create_web_worker_callback(
     self: &Arc<Self>,
     stdio: deno_runtime::deno_io::Stdio,
+    custom_extensions_cb: Option<Arc<CustomExtensionsCb>>,
   ) -> Arc<CreateWebWorkerCb> {
     let shared = self.clone();
     Arc::new(move |args| {
@@ -248,8 +254,8 @@ impl<TSys: DenoLibSys> LibWorkerFactorySharedState<TSys> {
         args.parent_permissions.clone(),
         args.permissions.clone(),
       );
-      let create_web_worker_cb =
-        shared.create_web_worker_callback(stdio.clone());
+      let create_web_worker_cb = shared
+        .create_web_worker_callback(stdio.clone(), custom_extensions_cb.clone());
 
       let maybe_storage_key = shared
         .storage_key_resolver
@@ -287,6 +293,15 @@ impl<TSys: DenoLibSys> LibWorkerFactorySharedState<TSys> {
         ),
         permissions: args.permissions,
       };
+
+      let mut extensions = custom_extensions_cb
+        .as_ref()
+        .map(|cb| cb())
+        .unwrap_or_default();
+
+      if let Some(cb) = &shared.options.custom_extensions_cb {
+        extensions.append(&mut cb());
+      }
       let options = WebWorkerOptions {
         name: args.name,
         main_module: args.main_module.clone(),
@@ -319,8 +334,13 @@ impl<TSys: DenoLibSys> LibWorkerFactorySharedState<TSys> {
           otel_config: shared.options.otel_config.clone(),
           close_on_idle: args.close_on_idle,
         },
-        extensions: vec![],
-        startup_snapshot: shared.options.startup_snapshot,
+        extensions,
+        startup_snapshot: shared
+          .options
+          .custom_snapshot_cb
+          .as_ref()
+          .map(|cb| cb())
+          .unwrap_or_else(|| shared.options.startup_snapshot),
         create_params: create_isolate_create_params(),
         unsafely_ignore_certificate_errors: shared
           .options
@@ -398,7 +418,7 @@ impl<TSys: DenoLibSys> LibMainWorkerFactory<TSys> {
       mode,
       main_module,
       permissions,
-      vec![],
+      None,
       Default::default(),
     )
   }
@@ -408,7 +428,7 @@ impl<TSys: DenoLibSys> LibMainWorkerFactory<TSys> {
     mode: WorkerExecutionMode,
     main_module: Url,
     permissions: PermissionsContainer,
-    custom_extensions: Vec<Extension>,
+    custom_extensions_cb: Option<Arc<CustomExtensionsCb>>,
     stdio: deno_runtime::deno_io::Stdio,
   ) -> Result<LibMainWorker, CoreError> {
     let shared = &self.shared;
@@ -461,7 +481,16 @@ impl<TSys: DenoLibSys> LibMainWorkerFactory<TSys> {
       permissions,
       v8_code_cache: shared.code_cache.clone(),
     };
+    let mut extensions = custom_extensions_cb
+      .as_ref()
+      .map(|cb| cb())
+      .unwrap_or_default();
+    if let Some(cb) = &self.shared.options.custom_extensions_cb {
+      extensions.append(&mut cb());
+    }
 
+    let create_web_worker_cb =
+      shared.create_web_worker_callback(stdio.clone(), custom_extensions_cb);
     let options = WorkerOptions {
       bootstrap: BootstrapOptions {
         deno_version: crate::version::DENO_VERSION_INFO.deno.to_string(),
@@ -491,8 +520,13 @@ impl<TSys: DenoLibSys> LibMainWorkerFactory<TSys> {
         otel_config: shared.options.otel_config.clone(),
         close_on_idle: true,
       },
-      extensions: custom_extensions,
-      startup_snapshot: shared.options.startup_snapshot,
+      extensions,
+      startup_snapshot: shared
+        .options
+        .custom_snapshot_cb
+        .as_ref()
+        .map(|cb| cb())
+        .unwrap_or_else(|| shared.options.startup_snapshot),
       create_params: create_isolate_create_params(),
       unsafely_ignore_certificate_errors: shared
         .options
@@ -500,7 +534,7 @@ impl<TSys: DenoLibSys> LibMainWorkerFactory<TSys> {
         .clone(),
       seed: shared.options.seed,
       format_js_error_fn: Some(Arc::new(format_js_error)),
-      create_web_worker_cb: shared.create_web_worker_callback(stdio.clone()),
+      create_web_worker_cb,
       maybe_inspector_server: shared.maybe_inspector_server.clone(),
       should_break_on_first_statement: shared.options.inspect_brk,
       should_wait_for_inspector_session: shared.options.inspect_wait,

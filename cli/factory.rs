@@ -28,6 +28,8 @@ use deno_lib::npm::NpmRegistryReadPermissionChecker;
 use deno_lib::npm::NpmRegistryReadPermissionCheckerMode;
 use deno_lib::worker::LibMainWorkerFactory;
 use deno_lib::worker::LibMainWorkerOptions;
+use deno_lib::worker::CustomSnapshotCb;
+use deno_lib::worker::CustomExtensionsCb;
 use deno_npm::npm_rc::ResolvedNpmRc;
 use deno_npm_cache::NpmCacheSetting;
 use deno_resolver::cjs::IsCjsResolutionMode;
@@ -315,6 +317,8 @@ pub struct CliFactory {
   flags: Arc<Flags>,
   services: CliFactoryServices,
   overrides: CliFactoryOverrides,
+  custom_extensions_cb: Option<Arc<CustomExtensionsCb>>,
+  custom_snapshot_cb: Option<Arc<CustomSnapshotCb>>,
 }
 
 impl CliFactory {
@@ -322,6 +326,8 @@ impl CliFactory {
     Self {
       flags,
       watcher_communicator: None,
+      custom_snapshot_cb: None,
+      custom_extensions_cb: None,
       services: Default::default(),
       overrides: Default::default(),
     }
@@ -336,6 +342,22 @@ impl CliFactory {
       flags,
       services: Default::default(),
       overrides: Default::default(),
+      custom_extensions_cb: None,
+      custom_snapshot_cb: None,
+    }
+  }
+
+  pub fn with_custom_ext_cb(self, cb: Arc<CustomExtensionsCb>) -> Self {
+    Self {
+      custom_extensions_cb: Some(cb),
+      ..self
+    }
+  }
+
+  pub fn with_custom_snapshot_cb(self, cb: Arc<CustomSnapshotCb>) -> Self {
+    Self {
+      custom_snapshot_cb: Some(cb),
+      ..self
     }
   }
 
@@ -1013,7 +1035,7 @@ impl CliFactory {
       let mut checker = FeatureChecker::default();
       checker.set_exit_cb(Box::new(crate::unstable_exit_cb));
       let unstable_features = cli_options.unstable_features();
-      for granular_flag in crate::UNSTABLE_GRANULAR_FLAGS {
+      for granular_flag in deno_runtime::UNSTABLE_GRANULAR_FLAGS {
         if unstable_features.contains(&granular_flag.name.to_string()) {
           checker.enable_feature(granular_flag.name);
         }
@@ -1203,6 +1225,8 @@ impl CliFactory {
       serve_host: cli_options.serve_host(),
       otel_config: self.cli_options()?.otel_config(),
       startup_snapshot: crate::js::deno_isolate_init(),
+      custom_extensions_cb: self.custom_extensions_cb.clone(),
+      custom_snapshot_cb: self.custom_snapshot_cb.clone(),
     })
   }
 
@@ -1241,6 +1265,11 @@ impl CliFactory {
       create_hmr_runner,
       create_coverage_collector,
       default_npm_caching_strategy: cli_options.default_npm_caching_strategy(),
+      node_ipc: cli_options.node_ipc_fd(),
+      serve_port: cli_options.serve_port(),
+      serve_host: cli_options.serve_host(),
+      custom_extensions_cb: self.custom_extensions_cb.clone(),
+      custom_snapshot_cb: self.custom_snapshot_cb.clone(),
     })
   }
 }
