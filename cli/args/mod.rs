@@ -3,8 +3,8 @@
 pub mod deno_json;
 mod flags;
 mod flags_net;
-mod lockfile;
-mod package_json;
+pub mod lockfile;
+pub mod package_json;
 
 use std::borrow::Cow;
 use std::collections::HashMap;

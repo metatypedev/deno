@@ -137,7 +137,7 @@ macro_rules! maybe_compressed_lib {
 
 #[derive(Clone)]
 pub enum StaticAssetSource {
-  #[cfg_attr(any(debug_assertions, feature = "hmr"), allow(dead_code))]
+  #[cfg_attr(any(debug_assertions, feature = "hmr"), allow(dead_code, private_interfaces))]
   Compressed(CompressedSource),
   Uncompressed(&'static str),
   #[cfg_attr(not(feature = "hmr"), allow(dead_code))]
