@@ -620,6 +620,7 @@ pub struct WorkspaceSettings {
   #[serde(default)]
   pub typescript: LanguageWorkspaceSettings,
 
+  #[allow(private_interfaces)]
   #[serde(default)]
   pub tracing: Option<super::trace::TracingConfigOrEnabled>,
 }
