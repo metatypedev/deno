@@ -4,8 +4,8 @@ pub mod deno_json;
 mod flags;
 mod flags_net;
 mod import_map;
-mod lockfile;
-mod package_json;
+pub mod lockfile;
+pub mod package_json;
 
 use deno_ast::SourceMapOption;
 use deno_config::deno_json::NodeModulesDirMode;

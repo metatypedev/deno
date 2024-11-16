@@ -94,10 +94,15 @@ pub async fn kernel(
       WorkerExecutionMode::Jupyter,
       main_module.clone(),
       permissions,
-      vec![
-        ops::jupyter::deno_jupyter::init_ops(stdio_tx.clone()),
-        ops::testing::deno_test::init_ops(test_event_sender),
-      ],
+      {
+        let stdio_tx = stdio_tx.clone();
+        Some(Arc::new(move || {
+          vec![
+            ops::jupyter::deno_jupyter::init_ops(stdio_tx.clone()),
+            ops::testing::deno_test::init_ops(test_event_sender.clone()),
+          ]
+        }))
+      },
       // FIXME(nayeemrmn): Test output capturing currently doesn't work.
       Stdio {
         stdin: StdioPipe::inherit(),

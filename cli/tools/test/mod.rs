@@ -519,16 +519,16 @@ pub struct TestSummary {
 }
 
 #[derive(Debug, Clone)]
-struct TestSpecifiersOptions {
-  cwd: Url,
-  concurrent_jobs: NonZeroUsize,
-  fail_fast: Option<NonZeroUsize>,
-  log_level: Option<log::Level>,
-  filter: bool,
-  specifier: TestSpecifierOptions,
-  reporter: TestReporterConfig,
-  junit_path: Option<String>,
-  hide_stacktraces: bool,
+pub struct TestSpecifiersOptions {
+  pub cwd: Url,
+  pub concurrent_jobs: NonZeroUsize,
+  pub fail_fast: Option<NonZeroUsize>,
+  pub log_level: Option<log::Level>,
+  pub filter: bool,
+  pub specifier: TestSpecifierOptions,
+  pub reporter: TestReporterConfig,
+  pub junit_path: Option<String>,
+  pub hide_stacktraces: bool,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -616,7 +616,16 @@ async fn configure_main_worker(
       WorkerExecutionMode::Test,
       specifier.clone(),
       permissions_container,
-      vec![ops::testing::deno_test::init_ops(worker_sender.sender)],
+      {
+        // NOTE: (yohe) despite the arc and clones here
+        // the test extension was not written with WebWorkers in mind,
+        // the primary need for the closure based approach here
+        Some(Arc::new(move || {
+          vec![ops::testing::deno_test::init_ops(
+            worker_sender.sender.clone(),
+          )]
+        }))
+      },
       Stdio {
         stdin: StdioPipe::inherit(),
         stdout: StdioPipe::file(worker_sender.stdout),
@@ -1188,7 +1197,7 @@ async fn wait_for_activity_to_stabilize(
 static HAS_TEST_RUN_SIGINT_HANDLER: AtomicBool = AtomicBool::new(false);
 
 /// Test a collection of specifiers with test modes concurrently.
-async fn test_specifiers(
+pub async fn test_specifiers(
   worker_factory: Arc<CliMainWorkerFactory>,
   permissions: &Permissions,
   permission_desc_parser: &Arc<RuntimePermissionDescriptorParser>,
@@ -1511,7 +1520,7 @@ fn collect_specifiers_with_test_mode(
 /// module are marked as `TestMode::Documentation`. Type definition files
 /// cannot be run, and therefore need to be marked as `TestMode::Documentation`
 /// as well.
-async fn fetch_specifiers_with_test_mode(
+pub async fn fetch_specifiers_with_test_mode(
   cli_options: &CliOptions,
   file_fetcher: &FileFetcher,
   member_patterns: impl Iterator<Item = FilePatterns>,
@@ -1813,7 +1822,7 @@ pub async fn run_tests_with_watch(
 }
 
 /// Extracts doc tests from files specified by the given specifiers.
-async fn get_doc_tests(
+pub async fn get_doc_tests(
   specifiers_with_mode: &[(Url, TestMode)],
   file_fetcher: &FileFetcher,
 ) -> Result<Vec<File>, AnyError> {
@@ -1833,7 +1842,7 @@ async fn get_doc_tests(
 
 /// Get a list of specifiers that we need to perform typecheck and run tests on.
 /// The result includes "pseudo specifiers" for doc tests.
-fn get_target_specifiers(
+pub fn get_target_specifiers(
   specifiers_with_mode: Vec<(Url, TestMode)>,
   doc_tests: &[File],
 ) -> Vec<Url> {

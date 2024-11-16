@@ -5725,7 +5725,7 @@ fn unstable_args_parse(
     matches.get_flag("unstable-sloppy-imports");
 
   if matches!(cfg, UnstableArgsConfig::ResolutionAndRuntime) {
-    for granular_flag in crate::UNSTABLE_GRANULAR_FLAGS {
+    for granular_flag in deno_runtime::UNSTABLE_GRANULAR_FLAGS {
       if matches.get_flag(&format!("unstable-{}", granular_flag.name)) {
         flags
           .unstable_config

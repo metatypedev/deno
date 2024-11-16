@@ -178,7 +178,11 @@ pub async fn run(
       WorkerExecutionMode::Repl,
       main_module.clone(),
       permissions.clone(),
-      vec![crate::ops::testing::deno_test::init_ops(test_event_sender)],
+      Some(Arc::new(move || {
+        vec![crate::ops::testing::deno_test::init_ops(
+          test_event_sender.clone(),
+        )]
+      })),
       Default::default(),
     )
     .await?;
