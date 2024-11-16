@@ -922,6 +922,8 @@ pub async fn run(data: StandaloneData) -> Result<i32, AnyError> {
       node_ipc: None,
       serve_port: None,
       serve_host: None,
+      custom_extensions_cb: None,
+      custom_snapshot_cb: None,
     },
     metadata.otel_config,
   );

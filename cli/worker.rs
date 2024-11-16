@@ -108,6 +108,9 @@ pub type CreateCoverageCollectorCb = Box<
     + Sync,
 >;
 
+pub type CustomExtensionsCb = dyn Fn() -> Vec<Extension> + Send + Sync;
+pub type CustomSnapshotCb = dyn Fn() -> Option<&'static [u8]> + Send + Sync;
+
 pub struct CliMainWorkerOptions {
   pub argv: Vec<String>,
   pub log_level: WorkerLogLevel,
@@ -131,6 +134,8 @@ pub struct CliMainWorkerOptions {
   pub node_ipc: Option<i64>,
   pub serve_port: Option<u16>,
   pub serve_host: Option<String>,
+  pub custom_extensions_cb: Option<Arc<CustomExtensionsCb>>,
+  pub custom_snapshot_cb: Option<Arc<CustomSnapshotCb>>,
 }
 
 struct SharedWorkerState {
@@ -462,7 +467,7 @@ impl CliMainWorkerFactory {
         mode,
         main_module,
         self.shared.root_permissions.clone(),
-        vec![],
+        None,
         Default::default(),
       )
       .await
@@ -473,7 +478,7 @@ impl CliMainWorkerFactory {
     mode: WorkerExecutionMode,
     main_module: ModuleSpecifier,
     permissions: PermissionsContainer,
-    custom_extensions: Vec<Extension>,
+    custom_extensions_cb: Option<Arc<CustomExtensionsCb>>,
     stdio: deno_runtime::deno_io::Stdio,
   ) -> Result<CliMainWorker, AnyError> {
     let shared = &self.shared;
@@ -520,9 +525,6 @@ impl CliMainWorkerFactory {
 
     let maybe_inspector_server = shared.maybe_inspector_server.clone();
 
-    let create_web_worker_cb =
-      create_web_worker_callback(shared.clone(), stdio.clone());
-
     let maybe_storage_key = shared
       .storage_key_resolver
       .resolve_storage_key(&main_module);
@@ -539,12 +541,27 @@ impl CliMainWorkerFactory {
       get_cache_storage_dir().join(checksum::gen(&[key.as_bytes()]))
     });
 
+    let mut extensions = custom_extensions_cb
+      .as_ref()
+      .map(|cb| cb())
+      .unwrap_or_default();
+
+    if let Some(cb) = &self.shared.options.custom_extensions_cb {
+      extensions.append(&mut cb());
+    }
+
+    let create_web_worker_cb = create_web_worker_callback(
+      shared.clone(),
+      stdio.clone(),
+      custom_extensions_cb,
+    );
+
     // TODO(bartlomieju): this is cruft, update FeatureChecker to spit out
     // list of enabled features.
     let feature_checker = shared.feature_checker.clone();
     let mut unstable_features =
-      Vec::with_capacity(crate::UNSTABLE_GRANULAR_FLAGS.len());
-    for granular_flag in crate::UNSTABLE_GRANULAR_FLAGS {
+      Vec::with_capacity(deno_runtime::UNSTABLE_GRANULAR_FLAGS.len());
+    for granular_flag in deno_runtime::UNSTABLE_GRANULAR_FLAGS {
       if feature_checker.check(granular_flag.name) {
         unstable_features.push(granular_flag.id);
       }
@@ -598,8 +615,14 @@ impl CliMainWorkerFactory {
         serve_host: shared.options.serve_host.clone(),
         otel_config: shared.otel_config.clone(),
       },
-      extensions: custom_extensions,
-      startup_snapshot: crate::js::deno_isolate_init(),
+      extensions,
+      startup_snapshot: self
+        .shared
+        .options
+        .custom_snapshot_cb
+        .as_ref()
+        .map(|cb| cb())
+        .unwrap_or_else(|| crate::js::deno_isolate_init()),
       create_params: create_isolate_create_params(),
       unsafely_ignore_certificate_errors: shared
         .options
@@ -716,6 +739,7 @@ impl CliMainWorkerFactory {
 fn create_web_worker_callback(
   shared: Arc<SharedWorkerState>,
   stdio: deno_runtime::deno_io::Stdio,
+  custom_extensions_cb: Option<Arc<CustomExtensionsCb>>,
 ) -> Arc<CreateWebWorkerCb> {
   Arc::new(move |args| {
     let maybe_inspector_server = shared.maybe_inspector_server.clone();
@@ -727,8 +751,11 @@ fn create_web_worker_callback(
       args.parent_permissions.clone(),
       args.permissions.clone(),
     );
-    let create_web_worker_cb =
-      create_web_worker_callback(shared.clone(), stdio.clone());
+    let create_web_worker_cb = create_web_worker_callback(
+      shared.clone(),
+      stdio.clone(),
+      custom_extensions_cb.clone(),
+    );
 
     let maybe_storage_key = shared
       .storage_key_resolver
@@ -742,8 +769,8 @@ fn create_web_worker_callback(
     // list of enabled features.
     let feature_checker = shared.feature_checker.clone();
     let mut unstable_features =
-      Vec::with_capacity(crate::UNSTABLE_GRANULAR_FLAGS.len());
-    for granular_flag in crate::UNSTABLE_GRANULAR_FLAGS {
+      Vec::with_capacity(deno_runtime::UNSTABLE_GRANULAR_FLAGS.len());
+    for granular_flag in deno_runtime::UNSTABLE_GRANULAR_FLAGS {
       if feature_checker.check(granular_flag.name) {
         unstable_features.push(granular_flag.id);
       }
@@ -767,6 +794,16 @@ fn create_web_worker_callback(
       npm_process_state_provider: Some(shared.npm_process_state_provider()),
       permissions: args.permissions,
     };
+
+    let mut extensions = custom_extensions_cb
+      .as_ref()
+      .map(|cb| cb())
+      .unwrap_or_default();
+
+    if let Some(cb) = &shared.options.custom_extensions_cb {
+      extensions.append(&mut cb());
+    }
+
     let options = WebWorkerOptions {
       name: args.name,
       main_module: args.main_module.clone(),
@@ -798,8 +835,13 @@ fn create_web_worker_callback(
         serve_host: shared.options.serve_host.clone(),
         otel_config: shared.otel_config.clone(),
       },
-      extensions: vec![],
-      startup_snapshot: crate::js::deno_isolate_init(),
+      extensions,
+      startup_snapshot: shared
+        .options
+        .custom_snapshot_cb
+        .as_ref()
+        .map(|cb| cb())
+        .unwrap_or_else(|| crate::js::deno_isolate_init()),
       create_params: create_isolate_create_params(),
       unsafely_ignore_certificate_errors: shared
         .options

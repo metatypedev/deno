@@ -325,6 +325,15 @@ pub fn create_runtime_snapshot(
   ];
   extensions.extend(custom_extensions);
 
+  /* for extension in &mut extensions {
+    for source in extension.esm_files.to_mut() {
+      maybe_transpile_source(source).unwrap();
+    }
+    for source in extension.js_files.to_mut() {
+      maybe_transpile_source(source).unwrap();
+    }
+  } */
+
   let output = create_snapshot(
     CreateSnapshotOptions {
       cargo_manifest_dir: env!("CARGO_MANIFEST_DIR"),

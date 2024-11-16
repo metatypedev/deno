@@ -62,6 +62,8 @@ use crate::util::progress_bar::ProgressBar;
 use crate::util::progress_bar::ProgressBarStyle;
 use crate::worker::CliMainWorkerFactory;
 use crate::worker::CliMainWorkerOptions;
+use crate::worker::CustomExtensionsCb;
+use crate::worker::CustomSnapshotCb;
 use std::path::PathBuf;
 
 use deno_cache_dir::npm::NpmCacheDir;
@@ -219,6 +221,8 @@ pub struct CliFactory {
   watcher_communicator: Option<Arc<WatcherCommunicator>>,
   flags: Arc<Flags>,
   services: CliFactoryServices,
+  custom_extensions_cb: Option<Arc<CustomExtensionsCb>>,
+  custom_snapshot_cb: Option<Arc<CustomSnapshotCb>>,
 }
 
 impl CliFactory {
@@ -226,6 +230,8 @@ impl CliFactory {
     Self {
       flags,
       watcher_communicator: None,
+      custom_snapshot_cb: None,
+      custom_extensions_cb: None,
       services: Default::default(),
     }
   }
@@ -235,6 +241,8 @@ impl CliFactory {
     CliFactory {
       watcher_communicator: None,
       flags,
+      custom_snapshot_cb: None,
+      custom_extensions_cb: None,
       services: CliFactoryServices {
         cli_options: Deferred::from_value(cli_options),
         ..Default::default()
@@ -250,6 +258,22 @@ impl CliFactory {
       watcher_communicator: Some(watcher_communicator),
       flags,
       services: Default::default(),
+      custom_extensions_cb: None,
+      custom_snapshot_cb: None,
+    }
+  }
+
+  pub fn with_custom_ext_cb(self, cb: Arc<CustomExtensionsCb>) -> Self {
+    Self {
+      custom_extensions_cb: Some(cb),
+      ..self
+    }
+  }
+
+  pub fn with_custom_snapshot_cb(self, cb: Arc<CustomSnapshotCb>) -> Self {
+    Self {
+      custom_snapshot_cb: Some(cb),
+      ..self
     }
   }
 
@@ -871,7 +895,7 @@ impl CliFactory {
       let mut checker = FeatureChecker::default();
       checker.set_exit_cb(Box::new(crate::unstable_exit_cb));
       let unstable_features = cli_options.unstable_features();
-      for granular_flag in crate::UNSTABLE_GRANULAR_FLAGS {
+      for granular_flag in deno_runtime::UNSTABLE_GRANULAR_FLAGS {
         if unstable_features.contains(&granular_flag.name.to_string()) {
           checker.enable_feature(granular_flag.name);
         }
@@ -1044,6 +1068,8 @@ impl CliFactory {
       node_ipc: cli_options.node_ipc_fd(),
       serve_port: cli_options.serve_port(),
       serve_host: cli_options.serve_host(),
+      custom_extensions_cb: self.custom_extensions_cb.clone(),
+      custom_snapshot_cb: self.custom_snapshot_cb.clone(),
     })
   }
 }

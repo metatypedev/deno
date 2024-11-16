@@ -322,6 +322,11 @@ impl TestEventSenderFactory {
       Ok::<_, std::io::Error>(())
     });
 
+    let stdout_writer =
+      std::sync::Arc::new(std::sync::RwLock::new(stdout_writer));
+    let stderr_writer =
+      std::sync::Arc::new(std::sync::RwLock::new(stderr_writer));
+
     let sender = TestEventSender {
       id,
       sender: self.sender.clone(),
@@ -384,12 +389,13 @@ pub struct TestEventWorkerSender {
 ///
 /// Any unflushed bytes in the stdout or stderr stream associated with this sender
 /// are not guaranteed to be sent on drop unless flush is explicitly called.
+#[derive(Clone)]
 pub struct TestEventSender {
   pub id: usize,
   sender: UnboundedSender<(usize, TestEvent)>,
   sync_sender: UnboundedSender<(SendMutex, SendMutex)>,
-  stdout_writer: PipeWrite,
-  stderr_writer: PipeWrite,
+  stdout_writer: std::sync::Arc<std::sync::RwLock<PipeWrite>>,
+  stderr_writer: std::sync::Arc<std::sync::RwLock<PipeWrite>>,
 }
 
 impl TestEventSender {
@@ -421,8 +427,14 @@ impl TestEventSender {
         self.sync_sender.is_closed()
       );
     }
-    _ = self.stdout_writer.write_all(SYNC_MARKER);
-    _ = self.stderr_writer.write_all(SYNC_MARKER);
+    {
+      let mut stdout_writer = self.stdout_writer.write().unwrap();
+      _ = stdout_writer.write_all(SYNC_MARKER);
+    }
+    {
+      let mut stderr_writer = self.stderr_writer.write().unwrap();
+      _ = stderr_writer.write_all(SYNC_MARKER);
+    }
     if !mutex2.try_lock_for(Duration::from_secs(30)) {
       panic!(
         "Test flush deadlock 2, sender closed = {}",
